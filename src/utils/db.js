@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const dbPath = "mongodb+srv://ReactReserve:vishnu77299@@reserve.rrbi2.mongodb.net/Reserve?retryWrites=true&w=majority";
 mongoose.connect(dbPath, {
     useNewUrlParser: true,
+    useUnifiedTopology: true
 });
 const db = mongoose.connection;
 db.on("error", () => {
