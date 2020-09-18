@@ -3,7 +3,7 @@ const express = require('express')
 const bodyParser = require('body-parser');
 const cors = require('cors')
 const { User } = require('./models/user')
-const {Todo} = require('./models/Todo');
+const { Todo } = require('./models/Todo');
 const { celebrate, Joi, errors, Segments } = require('celebrate');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -13,8 +13,24 @@ const auth = require('./middleware/auth');
 const expressJwt = require('express-jwt')
 Joi.objectId = require('joi-objectid')(Joi)
 
+const whitelist =
+    process.env.NODE_ENV === 'development'
+        ? [
+            'http://localhost',
+            'http://localhost:3000',
+            'http://192.168.0.105:3000',
+        ]
+        : [
+            `${process.env.APP_REST_PROTOCOL}://${process.env.APP_HOST}`,
+            'http://localhost',
+        ]
+const corsOptions = {
+    origin: whitelist,
+    credentials: true,
+}
+
 const server = express()
-server.use(cors())
+server.use(cors(corsOptions))
 server.use(bodyParser.json());
 server.use(bodyParser.urlencoded({ extended: true }));
 
@@ -137,7 +153,7 @@ const loginController = async (req, res) => {
 };
 
 // //User Login 
-server.get('/api/v1/login', loginController);
+server.post('/api/v1/login', loginController);
 
 const requireAuth = expressJwt({
     secret: process.env.JWT_SECRET,
@@ -165,26 +181,27 @@ server.get('/api/v1/profile', requireAuth, async (req, res) => {
 
 
 //create an Todo list
-server.post('/api/v1/create_todo',requireAuth, async (req, res) => {
+server.post('/api/v1/todos', requireAuth, async (req, res) => {
     //Check if this user already exisits
-        
-     const  user = await Todo.create({
-            title: req.body.title,
-            uid: req.body.id
-        });
+    console.log('title',req.body.title)
+    const todo = await Todo.create({
+        title: req.body.title,
+        uid: req.user._id
+    });
 
-    if(!user){
+    if (!todo) {
         return res.status(404).json({ type: 'info', message: 'User does not exists' });
     }
 
-        res.json({ user });
-    }
+    res.json({ todo });
+}
 );
 
 //Todo App
-server.get('/api/v1/todo', requireAuth, async (req, res) => {
+server.get('/api/v1/todos', requireAuth, async (req, res) => {
     try {
-        let TodoList = await Todo.find();
+        console.log('pika here')
+        let TodoList = await Todo.find().lean();
         if (!TodoList) {
             return res.status(404).json({ type: 'info', message: 'Todo does not exists' });
         }
@@ -199,18 +216,18 @@ server.get('/api/v1/todo', requireAuth, async (req, res) => {
 
 
 //Todo App
-server.put('/api/v1/todo/:id', requireAuth, async (req, res) => {
-    const id =req.params.id;
+server.put('/api/v1/todos/:id', requireAuth, async (req, res) => {
+    const id = req.params.id;
     const newTitle = req.body.title;
-    console.log('id',id);
-    console.log('newTitle',newTitle);
+    // console.log('id', id);
+    // console.log('newTitle', newTitle);
     try {
-        let TodoListItem = await Todo.updateOne({_id:id},{$set:{title:newTitle}});
+        let TodoListItem = await Todo.updateOne({ _id: id }, { $set: { title: newTitle } });
         if (!TodoListItem) {
             return res.status(404).json({ type: 'info', message: 'TodoItem does not exists' });
         }
 
-        console.log(TodoListItem);
+        console.log("TODOLIST",TodoListItem);
         res.status(200).json(TodoListItem)
     } catch (err) {
         res.status(400).json({ type: 'error', message: err.message })
@@ -222,11 +239,11 @@ server.put('/api/v1/todo/:id', requireAuth, async (req, res) => {
 
 
 //Todo App
-server.delete('/api/v1/todo/:id', requireAuth, async (req, res) => {
-    const id =req.params.id;
-    console.log('id',id);
+server.delete('/api/v1/todos/:id', requireAuth, async (req, res) => {
+    const id = req.params.id;
+    console.log('id', id);
     try {
-        let TodoListItem = await Todo.deleteOne({_id:id});
+        let TodoListItem = await Todo.deleteOne({ _id: id });
         if (!TodoListItem) {
             return res.status(404).json({ type: 'info', message: 'TodoItem does not exists' });
         }
@@ -244,4 +261,3 @@ server.use(errors());
 server.listen(port, () => {
     console.log(`server is running at port:${port}`)
 });
-
